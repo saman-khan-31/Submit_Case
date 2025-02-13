@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Similarity Finder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            height: 100vh;
+        }
+        .left-container {
+            width: 25%;
+        }
+        .right-container {
+            width: 75%;
+            background-color: #f9f9f9;
+        }
+        .upload-text {
+            color: grey;
+        }
+        pre {
+            white-space: pre-wrap;
+            font-family: Arial, sans-serif;
+        }
+        .case-title {
+            color: darkblue;
+            font-weight: bold;
+        }
+        .case-summary {
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container left-container">
+        <h3>Submit new case file:</h3>
+        <input type="file" id="fileInput" accept=".doc,.docx">
+        <button onclick="processFile()">Submit</button>
+    </div>
+    <div class="container right-container">
+        <h3>Similar Cases:</h3>
+        <pre id="output" class="upload-text">Upload case file to view similar cases</pre>
+    </div>
+
+    <script>
+        function processFile() {
+            const fileInput = document.getElementById("fileInput");
+            if (fileInput.files.length === 0) {
+                alert("Please upload a file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const arrayBuffer = reader.result;
+                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                    .then(function (result) {
+                        const text = result.value;
+                        const caseMatch = text.match(/Case (\d+)/);
+                        if (caseMatch) {
+                            const caseNumber = "Case " + caseMatch[1];
+                            findSimilarCases(caseNumber);
+                        } else {
+                            alert("No case number found in file.");
+                        }
+                    })
+                    .catch(function (err) {
+                        console.log("Error reading file: ", err);
+                    });
+            };
+            reader.readAsArrayBuffer(fileInput.files[0]);
+        }
+
+        function findSimilarCases(caseNumber) {
+            const caseData = {
+                "Case 1": [1, 0, 1, 0, 1, 0, 1, 1, 1, 0],
+                "Case 2": [0, 1, 1, 0, 0, 0, 1, 0, 0, 1],
+                "Case 3": [1, 0, 0, 1, 0, 1, 1, 0, 0, 0],
+                "Case 4": [0, 1, 1, 0, 1, 0, 0, 1, 1, 0],
+                "Case 5": [1, 1, 0, 1, 0, 0, 1, 0, 0, 0],
+                "Case 6": [0, 1, 1, 0, 1, 0, 1, 1, 1, 0]
+            };
+            
+            const caseSummaries = {
+                "Case 1": { verdict: "Custody retained by mother, but educational decisions remain with father.", keyConsiderations: "Best interest of the child; distinction between custody and guardianship." },
+                "Case 2": { verdict: "Divorce granted due to emotional abuse and neglect.", keyConsiderations: "Emotional abuse proven; financial support and custody awarded to wife." },
+                "Case 3": { verdict: "Child support increased to match father's improved income.", keyConsiderations: "Child's needs and father's financial capability reassessed." },
+                "Case 4": { verdict: "Prenuptial agreement partially invalidated.", keyConsiderations: "Compliance with Sharia principles; agreements under coercion are voidable." },
+                "Case 5": { verdict: "Wife granted deferred dowry and limited alimony.", keyConsiderations: "Deferred dowry upheld; compensation for marital suffering denied." },
+                "Case 6": { verdict: "Judgment declared void due to procedural errors.", keyConsiderations: "Missing judicial signatures invalidated the decision." }
+            };
+            
+            let baseCase = caseData[caseNumber];
+            if (!baseCase) {
+                document.getElementById("output").textContent = "Case not found in database.";
+                return;
+            }
+
+            let similarities = [];
+            for (let key in caseData) {
+                if (key !== caseNumber) {
+                    let common = baseCase.reduce((acc, val, idx) => acc + (val === caseData[key][idx] ? 1 : 0), 0);
+                    similarities.push({ case: key, score: common });
+                }
+            }
+            similarities.sort((a, b) => b.score - a.score);
+            let topMatches = similarities.slice(0, 3);
+            
+            let outputText = "";
+            topMatches.forEach(match => {
+                outputText += `<div class='case-summary'><span class='case-title'>${match.case}: Plaintiff vs. Defendant</span><br>`;
+                outputText += `Verdict: ${caseSummaries[match.case].verdict}<br>`;
+                outputText += `Key considerations: ${caseSummaries[match.case].keyConsiderations}</div><br>`;
+            });
+
+            document.getElementById("output").innerHTML = outputText;
+            document.getElementById("output").classList.remove("upload-text");
+        }
+    </script>
+</body>
+</html>
