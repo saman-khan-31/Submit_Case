@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Similarity Finder</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script> <!-- Required Plugin -->
+    <style>
+        body {
+            display: flex;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            height: 100vh;
+        }
+.container-new {
+            padding: 20px;
+            border: 1px solid #ccc;
+height:100%;
+display:none;
+
+        }
+        .left-container {
+            width: 50%;
+        }
+        .right-container {
+            width: 50%;
+            background-color: #f9f9f9;
+        }
+        .upload-text {
+            color: grey;
+        }
+        pre {
+            white-space: pre-wrap;
+            font-family: Arial, sans-serif;
+	    font-size: 14px;
+        }
+        .case-title {
+            color: darkblue;
+            font-weight: bold;
+	    font-size: 14px;
+		
+        }
+        .case-summary {
+            margin-bottom: 20px;
+            line-height: 1.2;
+	    font-size: 14px;
+        }
+canvas {
+            width: 100%; /* Reduce width to decrease gap */
+            height: 250px;
+border: none;
+        }
+.button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center-aligns both elements horizontally */
+    justify-content: center; /* Centers content vertically */
+    width: 100%; /* Ensures it takes up the available width */
+}
+button {
+    font-size: 14px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    width: 50%; /* Adjust width to be longer */
+    border-radius: 5px;
+    text-align: center;
+}
+
+
+button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+}
+
+input[type="file"] {
+    font-size: 14px; /* Increased file input text size */
+    display: block;
+}
+
+
+.prediction-heading {
+            color: darkblue;
+            font-weight: bold;
+        }
+        .confidence-score {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+ <div class="container left-container">
+    <h3>Submit new case file:</h3>
+    <div class="button-container">
+        <input type="file" id="fileInput" accept=".doc,.docx">
+	<br>
+        <button onclick="processFile()">Submit</button>
+    </div>
+    <br>
+    <div id="submittedCaseDetails"></div>
+ <div class="container-new" id="timelineContainer">
+        <h3>Case Progression Timeline:</h3>
+        <canvas id="caseTimeline"></canvas>
+    </div>
+</div>
+
+
+    <div class="container right-container">
+        <h3>Similar Cases:</h3>
+        <pre id="output" class="upload-text">Upload case file to view similar cases</pre>
+<hr> <br>
+	 <div id="predictiveAnalysis"></div>
+    </div>
+
+    <script>
+
+
+const predictions = {
+    "Case 1": { 
+        verdict: "The court is likely to rule that the mother will retain custody of the children, but the father will have the legal right to make educational decisions on their behalf.", 
+        favored: "Father", 
+        confidence: "83%", 
+        keyConsiderations: [
+            "Past case law suggests that custodial parents are responsible for daily care, while legal guardians retain decision-making rights.",
+            "The father is expected to retain authority over the children’s education unless proven detrimental."
+        ] 
+    },
+    "Case 2": { 
+        verdict: "The court is expected to grant the wife a divorce due to emotional abuse, supporting her claims with sufficient evidence.", 
+        favored: "Wife", 
+        confidence: "90%", 
+        keyConsiderations: [
+            "Emotional abuse is recognized as a valid reason for divorce if substantiated with proof.",
+            "The husband will likely be ordered to provide financial support, including spousal maintenance and child support."
+        ] 
+    },
+    "Case 3": { 
+        verdict: "The court will likely rule in favor of the mother, requiring the father to increase child support payments in proportion to his improved financial situation.", 
+        favored: "Mother", 
+        confidence: "78%", 
+        keyConsiderations: [
+            "Child support decisions are typically adjusted based on the father's income and the child's evolving financial needs.",
+            "The mother’s request for increased support is likely to be upheld if inflation and living costs justify the revision."
+        ] 
+    },
+    "Case 4": { 
+        verdict: "The court is expected to partially invalidate the prenuptial agreement, ruling that it does not comply with Sharia law and unfairly restricts the wife’s financial rights.", 
+        favored: "Wife", 
+        confidence: "85%", 
+        keyConsiderations: [
+            "Prenuptial agreements must align with Sharia principles and cannot unfairly disadvantage one spouse.",
+            "The wife will likely receive full financial entitlements, as contracts signed under duress are voidable."
+        ] 
+    },
+    "Case 5": { 
+        verdict: "The court will likely rule in favor of the wife, awarding her the deferred dowry and limited alimony while denying compensation claims due to lack of evidence.", 
+        favored: "Wife", 
+        confidence: "82%", 
+        keyConsiderations: [
+            "Deferred dowry is a contractual obligation and must be honored.",
+            "Compensation for marital suffering requires clear evidence of harm, which the wife may not have sufficiently demonstrated."
+        ] 
+    },
+    "Case 6": { 
+        verdict: "The judgment is expected to be declared void due to procedural deficiencies, and the case will likely be sent for retrial.", 
+        favored: "Appellant", 
+        confidence: "88%", 
+        keyConsiderations: [
+            "Judgments missing judicial signatures are legally invalid and must be reexamined.",
+            "The procedural error will likely lead to the case being reopened and reconsidered."
+        ] 
+    },
+    "Case 7": { 
+        verdict: "The court is likely to allow the mother to relocate with the child while modifying the father’s visitation rights to ensure continued parental involvement.", 
+        favored: "Mother", 
+        confidence: "80%", 
+        keyConsiderations: [
+            "The child's best interests take precedence, and relocation may be permitted if it does not negatively impact their well-being.",
+            "The father’s opposition is unlikely to succeed unless significant harm from the relocation can be demonstrated."
+        ] 
+    },
+    "Case 8": { 
+        verdict: "The court is expected to uphold the existing custody settlement agreement, denying the father’s request for changes.", 
+        favored: "Mother", 
+        confidence: "92%", 
+        keyConsiderations: [
+            "Legally binding custody agreements remain enforceable unless a compelling reason for modification is presented.",
+            "The father’s challenge is likely to be dismissed as the agreement was voluntarily signed by both parties."
+        ] 
+    },
+    "Case 9": { 
+        verdict: "The court is likely to rule in favor of the father, allowing him to transfer his daughters to a public school as their legal guardian.", 
+        favored: "Father", 
+        confidence: "76%", 
+        keyConsiderations: [
+            "Legal guardians typically have the authority to make educational decisions unless proven detrimental to the child.",
+            "The mother’s objections may be overruled unless strong evidence supports her concerns."
+        ] 
+    },
+    "Case 10": { 
+        verdict: "The court is expected to grant the wife a divorce and award her full financial rights, ruling that polygamy alone is not a sufficient ground for divorce.", 
+        favored: "Wife", 
+        confidence: "89%", 
+        keyConsiderations: [
+            "Polygamy is permitted under UAE law, but financial entitlements are upheld for the first wife.",
+            "The wife is likely to receive full financial rights as part of the divorce settlement."
+        ] 
+    },
+    "Case 11": { 
+        verdict: "The court will likely reaffirm the mother's custody despite the father’s appeal, prioritizing the child's welfare.", 
+        favored: "Mother", 
+        confidence: "84%", 
+        keyConsiderations: [
+            "Custody decisions can be reassessed based on the child’s best interests, but prior agreements are often upheld.",
+            "The father’s custody claim is unlikely to succeed unless he can demonstrate a significant change in circumstances."
+        ] 
+    },
+    "Case 12": { 
+        verdict: "The court is expected to rule in favor of the mother, retaining her custody rights while declaring the previous judgment void due to procedural errors.", 
+        favored: "Mother", 
+        confidence: "91%", 
+        keyConsiderations: [
+            "Missing judicial signatures make the previous ruling invalid, requiring a reevaluation.",
+            "The mother is likely to retain custody as no evidence suggests she is unfit to care for the children."
+        ] 
+    }
+};
+
+
+
+        function processFile() {
+            const fileInput = document.getElementById("fileInput");
+            if (fileInput.files.length === 0) {
+                alert("Please upload a file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const arrayBuffer = reader.result;
+                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                    .then(function (result) {
+                        const text = result.value;
+                        const caseMatch = text.match(/Case (\d+)/);
+                        if (caseMatch) {
+                            const caseNumber = "Case " + caseMatch[1];
+                            findSimilarCases(caseNumber);
+                        } else {
+                            alert("No case number found in file.");
+                        }
+                    })
+                    .catch(function (err) {
+                        console.log("Error reading file: ", err);
+                    });
+            };
+            reader.readAsArrayBuffer(fileInput.files[0]);
+        }
+
+        function findSimilarCases(caseNumber) {
+    const caseData = {
+        "Case 1": [1, 0, 1, 0, 1, 0, 1, 1, 1, 0],
+        "Case 2": [0, 1, 1, 0, 0, 0, 1, 0, 0, 1],
+        "Case 3": [1, 0, 0, 1, 0, 1, 1, 0, 0, 0],
+        "Case 4": [0, 1, 1, 0, 1, 0, 0, 1, 1, 0],
+        "Case 5": [1, 1, 0, 1, 0, 0, 1, 0, 0, 0],
+        "Case 6": [0, 1, 1, 0, 1, 0, 1, 1, 1, 0],
+        "Case 7": [1, 0, 0, 1, 0, 1, 0, 0, 0, 1],
+        "Case 8": [1, 0, 0, 1, 0, 1, 1, 0, 0, 0],
+        "Case 9": [1, 0, 0, 1, 0, 1, 1, 0, 0, 0],
+        "Case 10": [0, 1, 1, 0, 1, 0, 1, 1, 1, 0],
+        "Case 11": [1, 0, 0, 1, 0, 1, 1, 0, 0, 0],
+        "Case 12": [1, 0, 0, 1, 1, 0, 1, 1, 1, 0]
+    };
+            
+            const caseSummaries = {
+                "Case 1": { plaintiff: "Mother (custodial parent)", defendant: "Father (legal guardian)", verdict: "Custody retained by mother, but educational decisions remain with father.", keyConsiderations: "Best interest of the child; distinction between custody and guardianship." },
+                "Case 2": { plaintiff: "Wife (seeking divorce)", defendant: "Husband (opposing divorce)", verdict: "Divorce granted due to emotional abuse and neglect.", keyConsiderations: "Emotional abuse proven; financial support and custody awarded to wife." },
+                "Case 3": { plaintiff: "Mother (requesting increased support)", defendant: "Father (opposing the increase)", verdict: "Child support increased to match father's improved income.", keyConsiderations: "Child's needs and father's financial capability reassessed." },
+                "Case 4": { plaintiff: "Husband (seeking enforcement of prenuptial agreement)", defendant: "Wife (challenging the agreement)", verdict: "Prenuptial agreement partially invalidated.", keyConsiderations: "Compliance with Sharia principles; agreements under coercion are voidable." },
+                "Case 5": { plaintiff: "Wife (seeking financial entitlements)", defendant: "Husband (contesting the claim)", verdict: "Wife granted deferred dowry and limited alimony.", keyConsiderations: "Deferred dowry upheld; compensation for marital suffering denied." },
+                "Case 6": { plaintiff: "Appellant (challenging judgment)", defendant: "Opposing party", verdict: "Judgment declared void due to procedural errors.", keyConsiderations: "Missing judicial signatures invalidated the decision." },
+                "Case 7": { plaintiff: "Father (opposing relocation)", defendant: "Mother (seeking relocation)", verdict: "Mother allowed to relocate with child, with modified visitation rights.", keyConsiderations: "Child's best interests prioritized over father's objection." },
+                "Case 8": { plaintiff: "Father (challenging custody agreement)", defendant: "Mother (seeking enforcement)", verdict: "Custody settlement agreement upheld.", keyConsiderations: "Legally binding agreement remains enforceable." },
+                "Case 9": { plaintiff: "Father (seeking school transfer)", defendant: "Mother (opposing transfer)", verdict: "Father allowed to transfer daughters to public school.", keyConsiderations: "Legal guardian's authority over educational decisions affirmed." },
+                "Case 10": { plaintiff: "Wife (seeking divorce)", defendant: "Husband (opposing divorce)", verdict: "Divorce granted; wife awarded full financial rights.", keyConsiderations: "Polygamy alone is not grounds for divorce; financial entitlements upheld." },
+                "Case 11": { plaintiff: "Father (seeking custody)", defendant: "Mother (opposing custody claim)", verdict: "Father's custody claim rejected, mother retains custody.", keyConsiderations: "Custody decisions can be reassessed but must prioritize child's welfare." },
+                "Case 12": { plaintiff: "Mother (seeking to retain custody)", defendant: "Father (challenging custody)", verdict: "Mother retains custody; procedural errors in court ruling voided.", keyConsiderations: "Best interests of the child upheld; missing signatures invalidated judgment." }
+            };
+            
+            let baseCase = caseData[caseNumber];
+            if (!baseCase) {
+                document.getElementById("output").textContent = "Case not found in database.";
+                return;
+            }
+
+	
+
+		// Display submitted case details in the left container
+    if (caseSummaries[caseNumber]) {
+        document.getElementById("submittedCaseDetails").innerHTML = `
+            <h3>Submitted Case:</h3>
+            <div class='case-summary'>
+                <span class='case-title'>${caseNumber}: ${caseSummaries[caseNumber].plaintiff} vs. ${caseSummaries[caseNumber].defendant}</span><br>
+                Key considerations: ${caseSummaries[caseNumber].keyConsiderations}
+            </div>
+        `;
+    }
+
+
+
+
+            let similarities = [];
+            for (let key in caseData) {
+                if (key !== caseNumber) {
+                    let common = baseCase.reduce((acc, val, idx) => acc + (val === caseData[key][idx] ? 1 : 0), 0);
+                    similarities.push({ case: key, score: common });
+                }
+            }
+            similarities.sort((a, b) => b.score - a.score);
+            let topMatches = similarities.slice(0, 3);
+            
+            let outputText = "";
+            topMatches.forEach(match => {
+                outputText += `<div class='case-summary'><span class='case-title'>${match.case}: ${caseSummaries[match.case].plaintiff} vs. ${caseSummaries[match.case].defendant}</span><br>`;
+                outputText += `Verdict: ${caseSummaries[match.case].verdict}<br>`;
+                outputText += `Key considerations: ${caseSummaries[match.case].keyConsiderations}</div>`;
+            });
+
+            document.getElementById("output").innerHTML = outputText;
+            document.getElementById("output").classList.remove("upload-text");
+
+displayPrediction(caseNumber);
+document.getElementById('timelineContainer').style.display = 'block';
+displayCaseTimeline()
+        }
+
+function displayPrediction(caseNumber) {
+            if (predictions[caseNumber]) {
+                const prediction = predictions[caseNumber];
+                document.getElementById("predictiveAnalysis").innerHTML = `
+                    <h3>Predictive Forecasting:</h3>
+                    <div class='case-summary'>
+
+<span class='prediction-heading'>Leverages AI-driven predictive models to analyze historical cases and predict verdict outcomes with high confidence.</span> <br><br>
+
+
+                        <span class='prediction-heading'>Predicted Verdict:</span> <br>
+                        ${prediction.verdict}<br><br>
+
+<span class='prediction-heading'>Confidence Score:</span> 
+                        <span class="confidence-score">${prediction.confidence}</span><br><br>
+
+
+                        <span class='prediction-heading'>Key Considerations:</span>
+                        <ul>
+                            ${prediction.keyConsiderations.map(point => `<li>${point}</li>`).join("")}
+                        </ul>
+                    </div>
+                    <hr>
+                `;
+            } else {
+                document.getElementById("predictiveAnalysis").innerHTML = "<p>No prediction available for this case.</p>";
+            }
+        }
+
+
+function displayCaseTimeline() {
+	
+            const ctx = document.getElementById('caseTimeline').getContext('2d');
+
+            // Event dates & labels
+            const eventLabels = [
+                "Case Reopened",
+                "Preliminary Hearing",
+                "Expert Testimony",
+                "Judgment Issued",
+                "Next Hearing"
+            ];
+            
+            const eventDates = [
+                "2024-06-10", "2024-07-15", "2024-09-20", "2024-12-05", "2025-02-28", "2025-03-28"
+            ];
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: eventDates, // Full Dates on X-axis
+                    datasets: [{
+                        label: 'Case Progression Timeline',
+                        data: [1, 2, 3, 4, 5], // Y-axis positions (hidden)
+                        borderColor: 'blue',
+                        backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                        tension: 0.3,
+                        pointBackgroundColor: 'blue',
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        datalabels: {
+                            align: 'right',  // Align labels to the right of points
+                            anchor: 'end',   // Position labels slightly above points
+                            color: 'black',  // Label text color
+                            font: { size: 12 },
+                            formatter: function (value, context) {
+                                return eventLabels[context.dataIndex]; // Display the event name next to point
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            ticks: {
+                                autoSkip: false, // Ensure all dates show up
+                                maxRotation: 45, // Tilt for readability
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            display: false // Hide y-axis labels
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels] // Enable data labels plugin
+            });
+        }
+ 
+
+    </script>
+</body>
+</html>
